@@ -7,22 +7,31 @@ Inspired by [herdr-nvim](https://github.com/ChmaraX/herdr-nvim), and kept
 deliberately small: it only takes comments from Neovim to the agent. Opening
 Neovim from the agent's side is left to Rex.
 
-Comments stay on their lines while you edit, and go out as one message:
+There are two kinds: a review comment asks the agent to change something, a
+question only asks for an answer. Both stay on their lines while you edit, and
+go out together as one message, questions first:
 
 ```
+Questions about the code:
+
+1. lua/rex/init.lua:47
+   > local function with_target(on_choice)
+   Question: why look the pane up on every send?
+
+Please answer each question. Don't change any code because of them.
+
 Code review comments:
 
-1. lua/rex/init.lua:12-14
+2. lua/rex/init.lua:10-12
    > local function rex(args)
-   > ...
+   >   local r = vim.system(vim.list_extend({ "rex" }, args), { text = true }):wait()
+   >   if r.code ~= 0 then
    Comment: name this better
 
 Please address each comment. Reply with what you changed per item.
 ```
 
-Questions go into the same queue and the same message, in a section of their
-own before the comments that asks the agent to answer them without changing any
-code.
+With only questions or only comments, the message has just that section.
 
 ## Requirements
 
