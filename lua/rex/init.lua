@@ -131,13 +131,13 @@ end
 local sections = {
   {
     kind = "question",
-    header = "Questions about the code from my editor:",
+    header = "Questions about the code:",
     label = "Question",
     footer = "Please answer each question. Don't change any code because of them.",
   },
   {
     kind = "comment",
-    header = "Code review comments from my editor:",
+    header = "Code review comments:",
     label = "Comment",
     footer = "Please address each comment. Reply with what you changed per item.",
   },

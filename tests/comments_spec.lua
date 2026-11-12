@@ -171,7 +171,7 @@ return {
   ["only questions: the message asks to answer and change nothing"] = function()
     eq(
       table.concat({
-        "Questions about the code from my editor:",
+        "Questions about the code:",
         "",
         "1. a.lua:1",
         "   > x",
@@ -186,7 +186,7 @@ return {
   ["questions come first, then comments, numbered through"] = function()
     eq(
       table.concat({
-        "Questions about the code from my editor:",
+        "Questions about the code:",
         "",
         "1. b.lua:2",
         "   > y",
@@ -194,7 +194,7 @@ return {
         "",
         "Please answer each question. Don't change any code because of them.",
         "",
-        "Code review comments from my editor:",
+        "Code review comments:",
         "",
         "2. a.lua:1",
         "   > x",
@@ -229,7 +229,7 @@ return {
     })
     eq(
       table.concat({
-        "Code review comments from my editor:",
+        "Code review comments:",
         "",
         "1. a.lua:1",
         "   > x",

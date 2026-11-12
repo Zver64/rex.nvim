@@ -49,11 +49,11 @@ return {
       assert(#comments.list() == 0, "comments not cleared")
 
       local screen = capture()
-      assert(screen:find("^[[200~Code review comments from my editor:", 1, true), screen)
+      assert(screen:find("^[[200~Code review comments:", 1, true), screen)
       assert(screen:find("1. tests/tmp_%d+%.lua:2\n   > local x = 1\n   Comment: first"), screen)
       assert(screen:find("2. tests/tmp_%d+%.lua:3%-4\n   > local y = 2\n   > return x %+ y\n   Comment: second"), screen)
       -- cat prints the line back only after Enter, so it shows up twice.
-      local _, count = screen:gsub("Code review comments from my editor:", "")
+      local _, count = screen:gsub("Code review comments:", "")
       assert(count == 2, "expected Enter to be pressed:\n" .. screen)
     end)
   end,

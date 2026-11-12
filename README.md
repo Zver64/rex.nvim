@@ -10,7 +10,7 @@ Neovim from the agent's side is left to Rex.
 Comments stay on their lines while you edit, and go out as one message:
 
 ```
-Code review comments from my editor:
+Code review comments:
 
 1. lua/rex/init.lua:12-14
    > local function rex(args)
