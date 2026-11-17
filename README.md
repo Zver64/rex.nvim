@@ -65,11 +65,11 @@ No `setup()` call is needed.
 :Rex ref       " paste a bare path:12-20 reference for the line or range
 ```
 
-On every send the plugin looks for the agent pane: a pane whose program reports
-its status to Rex (Program Status Protocol, OSC 7501), as Claude Code does. A
-shell sitting at its prompt doesn't count. With a single agent it sends right
-away; with several it asks. When no pane reports a status, all other panes are
-candidates.
+On every send the plugin finds panes whose foreground program has a known
+agent name or reports a root status to Rex (Program Status Protocol, OSC 7501).
+With one agent in the session it sends directly; with several it always asks
+which agent to use, regardless of their tabs. With no candidates it warns and
+leaves comments pending; other panes are never fallback targets.
 
 In the list, `<CR>` jumps to a comment, `<c-e>` edits it, and `dd` (or `<c-x>`
 in the input) deletes it.

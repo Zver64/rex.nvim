@@ -8,16 +8,20 @@ local function run(args)
   return r.stdout
 end
 
-local function with_session(fn)
-  local s = vim.json.decode(run({ "rex", "new", "--json", "--", "cat", "-v" })).session_id
+local function with_session(fn, plain)
+  local command = plain and "exec cat -v" or "exec -a codex cat -v"
+  local s = vim.json.decode(run({ "rex", "new", "--json", "--shell=none", "--", "bash", "-c", command })).session_id
   local env_session, env_block = vim.env.REX_SESSION, vim.env.REX_BLOCK
   vim.env.REX_SESSION, vim.env.REX_BLOCK = s, "none"
   comments.clear()
+  vim.wait(500)
+  local select = vim.ui.select
   local ok, err = pcall(fn, function(block)
     vim.wait(500)
     return run({ "rex", "capture", "-s", s, block and "-b" or nil, block })
   end, s)
   vim.env.REX_SESSION, vim.env.REX_BLOCK = env_session, env_block
+  vim.ui.select = select
   vim.system({ "rex", "kill", s }):wait()
   assert(ok, err)
 end
@@ -89,6 +93,79 @@ return {
       vim.cmd("Rex ref")
       assert(capture(agent):find("tests/tmp_%d+%.lua:1 "), capture(agent))
       assert(not capture(plain):find("tmp_"), capture(plain))
+    end, true)
+  end,
+
+  ["finds a known foreground agent without status among other programs"] = function()
+    if vim.fn.executable("rex") == 0 then
+      return print("      skipped: rex not installed")
+    end
+    with_session(function(capture, s)
+      local target = vim.trim(run({ "rex", "block", "ls", "-s", s, "-q", "--short=false" }))
+      for _ = 1, 2 do
+        local editor = vim.json.decode(run({
+          "rex", "split", "-s", s, "-b", target, "--json", "--shell=none", "--", "nvim", "--clean",
+        })).block_ids[1]
+        assert(vim.wait(3000, function()
+          local process = vim.json.decode(run({ "rex", "block", "call", "-s", s, "-b", editor, "process" }))
+          return type(process.foreground) == "table" and process.foreground.name == "nvim"
+        end, 100), "Neovim did not start")
+      end
+      vim.ui.select = function()
+        error("asked to pick a pane")
+      end
+      buffer()
+      vim.cmd("Rex ref")
+      assert(capture(target):find("tests/tmp_%d+%.lua:1 "), capture(target))
     end)
+  end,
+
+  ["multiple session agents always require a choice even across tabs"] = function()
+    if vim.fn.executable("rex") == 0 then
+      return print("      skipped: rex not installed")
+    end
+    with_session(function(capture, s)
+      local first = vim.trim(run({ "rex", "block", "ls", "-s", s, "-q", "--short=false" }))
+      -- Our editor shares a tab with the first agent; the second is elsewhere.
+      vim.env.REX_BLOCK = vim.json.decode(run({
+        "rex", "split", "-s", s, "-b", first, "--json", "--shell=none", "--", "cat", "-v",
+      })).block_ids[1]
+      local second = vim.json.decode(run({
+        "rex", "run", "-s", s, "--json", "--shell=none", "--", "bash", "-c", "exec -a codex cat -v",
+      })).block_ids[1]
+      vim.wait(500)
+      local picked = false
+      vim.ui.select = function(list, _, cb)
+        picked = true
+        assert(#list == 2, vim.inspect(list))
+        for _, a in ipairs(list) do
+          if a.block_id == second then
+            return cb(a)
+          end
+        end
+        error("second agent missing from picker")
+      end
+      buffer()
+      vim.cmd("Rex ref")
+      assert(picked, "selected an agent without asking")
+      assert(capture(second):find("tests/tmp_%d+%.lua:1 "), capture(second))
+      assert(not capture(first):find("tmp_"), capture(first))
+    end)
+  end,
+
+  ["no agent leaves comments pending and sends nothing"] = function()
+    if vim.fn.executable("rex") == 0 then
+      return print("      skipped: rex not installed")
+    end
+    with_session(function(capture)
+      buffer()
+      comments.add(0, 1, 1, "keep this", "comment")
+      vim.ui.select = function()
+        error("offered a non-agent pane")
+      end
+      vim.cmd("Rex submit")
+      assert(#comments.list() == 1, "comments were cleared")
+      assert(not capture():find("keep this", 1, true), capture())
+    end, true)
   end,
 }

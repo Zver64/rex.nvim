@@ -1,4 +1,5 @@
 local comments = require("rex.comments")
+local agents = require("rex.agents")
 
 local M = {}
 
@@ -15,34 +16,12 @@ local function rex(args)
   return r.stdout
 end
 
--- Last non-empty line of a pane, so panes can be told apart in the picker.
-local function tail(block)
-  local out = rex({ "capture", "-s", session(), "-b", block }) or ""
-  local lines = vim.split(vim.trim(out), "\n")
-  return vim.trim(lines[#lines] or "")
-end
-
 local function call(block, method)
   local out = rex({ "block", "call", "-s", session(), "-b", block, method })
   return out and vim.json.decode(out)
 end
 
--- The status record reported by the program in the foreground of a pane, if it
--- reports one (Program Status Protocol, OSC 7501). Agents such as Claude Code
--- do; a shell sitting at its prompt doesn't.
-local function agent_status(block)
-  local process, status = call(block, "process"), call(block, "program_status")
-  local fg = process and process.foreground
-  for _, r in ipairs(status and status.records or {}) do
-    if fg and r.owner and r.owner.pid == fg.pid then
-      return r
-    end
-  end
-end
-
--- Finds the pane of the current Rex session the agent runs in, on every send.
--- Only panes whose program reports its status count; without any, all other
--- panes do. Asks only when there is more than one candidate.
+-- Resolve once for both comments and bare references.
 local function with_target(on_choice)
   if not session() then
     vim.notify("rex: not running inside Rex", vim.log.levels.ERROR)
@@ -52,38 +31,22 @@ local function with_target(on_choice)
   if not out then
     return
   end
-  local blocks = vim.tbl_filter(function(b)
-    return b.block_id ~= vim.env.REX_BLOCK
-  end, vim.json.decode(out).blocks)
-  if #blocks == 0 then
-    vim.notify("rex: no other panes in this session", vim.log.levels.WARN)
+  local list = agents.list(vim.json.decode(out).blocks, vim.env.REX_BLOCK, call)
+  if #list == 0 then
+    vim.notify("rex: no agents found in this session", vim.log.levels.WARN)
     return
   end
-  local agents = {}
-  for _, b in ipairs(blocks) do
-    b.status = agent_status(b.block_id)
-    if b.status then
-      table.insert(agents, b)
-    end
+  if #list == 1 then
+    return on_choice(list[1].block_id)
   end
-  if #agents > 0 then
-    blocks = agents
-  end
-  if #blocks == 1 then
-    return on_choice(blocks[1].block_id)
-  end
-  vim.ui.select(blocks, {
-    prompt = "Send to pane",
-    format_item = function(b)
-      if b.status then
-        local title = call(b.block_id, "title")
-        return string.format("%s (%s)  %s", b.status.effective_app or b.label, b.status.state, title and title.title or "")
-      end
-      return string.format("%s  %s", b.label, tail(b.block_id))
+  vim.ui.select(list, {
+    prompt = "Send to agent",
+    format_item = function(a)
+      return string.format("%s (%s)  %s", a.title, a.status, a.cwd)
     end,
-  }, function(b)
-    if b then
-      on_choice(b.block_id)
+  }, function(a)
+    if a then
+      on_choice(a.block_id)
     end
   end)
 end
